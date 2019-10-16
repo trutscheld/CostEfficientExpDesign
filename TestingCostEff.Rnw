@@ -1,0 +1,339 @@
+\documentclass{article}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{ctable}
+\usepackage[authoryear,round]{natbib}
+
+\newcommand{\scscst}{\scriptscriptstyle}
+\newcommand{\scst}{\scriptstyle}
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textit{#1}}}
+
+
+\author{Diana Trutschel$^\P$,Steffen Neumann$^\ddagger$}
+
+\begin{document}
+
+\title{Experiment design beyond gut feeling: design cost efficient and powerful experiments in biomedical research.}
+\maketitle
+
+\begin{center} $^\P$Deutsches Zentrum f\"ur Neurodegenerative Erkrankungen, Witten\\
+$^\ddagger$Leibniz Institute of Plant Biochemistry, Halle/Saale %{\tt sneumann@IPB-Halle.DE}
+ \end{center}
+
+\section{Introduction}
+
+% This document provides additional information for the article "Pilot study for hierarchical experiment design to investigate metabolomics data including statistical power approach".
+% 
+% We provide the R code for experimentalists to estimate variances of the described hierarchical experiment design and to plot the variances for all signals and each variance. 
+
+Based on these variances and relative cost assignments, 
+different design strategies with and without technical replicates can be compared. If the cost relation between biological and technical replicates is specified, the experiment design with minimal costs can be obtained. The algorithms are described in the methods section of the main article.
+
+% The vignette requires the data to be stored as CSV data, 
+% together with a CSV representation of the mapping between the experimental design
+% and the data matrix columns.
+
+\section{Tutorial}
+
+Load the file with convenience functions:
+
+<<>>=
+# This program is free software: you can redistribute it 
+# and/or modify it under the terms of the GNU
+# General Public License as published by the Free 
+# Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; 
+# without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A 
+# PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the 
+# GNU General Public License
+# along with this program.  If not, 
+# see <http://www.gnu.org/licenses/>.
+
+source('R/genericFunc.R')
+@
+
+
+\section{Power calculation and Finding Experiment design in relation to costs}
+
+The function \Rfunction{power.hierarch.ttest()} calculates the statistical power for a given (two-level)
+hierarchical experiment design. It can take the following parameters: the technical and biological variance 
+as obtained from the pilot experiment, and four out of the following five parameters 1)~number of technical replicates, 2)~number of biological replicates, 3)~effect, 4)~power and 5)~alpha. 
+The free parameter is calculated for the given biological and technical variance. 
+
+%Using this function, if a hierarchical t-test should apply to find differential features,
+%which variates with biological and technical variance $\sigma_{bio}^2$,$\sigma_{tech}^2$, 
+%and you want to know,
+
+In particular, this allows to answer the following questions:
+\begin{enumerate}
+\item  how many number of biological replicates $N$ are required to detect 
+significantly differential features with a effect of at leas $\delta$, power of minimum $1-\beta$, 
+error type I of $\alpha$ and the number of technical replicates $E$ for each biological are specified.   
+\item how many technical replicates $E$ for each of $N$ biological replicates are required 
+to find significantly different features with effect of at least $\delta$, power of minimum $1-\beta$ 
+and error type I of maximum $\alpha$. If the number should be returned as one $E=1$, then the hierarchical t-test becomes the commonly used Student's t-test. 
+\item what is the minimum effect (log fold change) $\delta$ of features which can be detected with power of $1-\beta$, 
+error type I of $\alpha$ if $N$ biological replicates and $E$ technical replicates are available. 
+\item How many of the truly differential features 
+with an effect of at least $\delta$ can be expected to be correctly detected $1-\beta$,
+if the maximum $\alpha$ type I error are allowed $N$ biological replicates and $E$ technical replicates are available.
+\item How many false positive features (error type I $\alpha$) can be expected with 
+a power of $1-\beta$, if differential features with an effect of $\delta$ are searched
+ and $N$ biological replicates and $E$ technical replicates are available.
+\end{enumerate}
+
+
+The user will get a list of the calculated and the given parameters: a vector of the number of biological and technical replicates $(N,E)$, the power $1-\beta$, effect $\delta$ and error type I $\alpha$.
+
+\begin{description}
+   \item[\bf{Input:}] $\alpha$,\# biological replicates, $\sigma_{bio}^2$,$\sigma_{tech}^2$ and 2 of 3 parameters from \# technical replicates, effect and power
+    \item[\bf{Output:}] list of (\# technical replicates, \# biological replicates), power and effect and alpha
+   \end{description}
+   
+   
+<<>>==
+# pos <- estvar[,2:k] > 0
+# VarNeg <- unique(sapply(1:(k-2), function(i){which(pos[,i]==FALSE)}))       
+# SiganzTrue <- nrow(estvar)-length(VarNeg)
+
+#sigma_instr_q <- 
+  #round(1000*mean(as.numeric(estvar[-VarNeg,k-2])))/1000
+#sigma_prep_q  <- 
+  #round(1000*mean(as.numeric(estvar[-VarNeg,k-1])))/1000
+sigma_tech_q  <- 0.119
+  #sigma_instr_q+sigma_prep_q
+sigma_bio_q   <- 0.172
+  #round(1000*mean(as.numeric(estvar[-VarNeg,k])))/1000
+ 
+print(c("technical variance", sigma_tech_q))
+print(c("biological variance", sigma_bio_q))
+
+alpha<-0.05
+n<-7
+
+E <- 2
+Em<-10
+pow<-0.8
+delta<-0.75
+
+
+power.hierarch.ttest(N=n,Emax=E,p=NULL,d=delta,alpha,
+                     sigma_bio_q,sigma_tech_q, type="power")
+power.hierarch.ttest(N=n,Emax=Em,p=pow,d=delta,alpha,
+                     sigma_bio_q,sigma_tech_q, type="replicates")
+E<-power.hierarch.ttest(N=n,Emax=Em,p=pow,d=delta,alpha,
+              sigma_bio_q,sigma_tech_q, type="replicates")[[1]][2]
+power.hierarch.ttest(N=n,Emax=E,p=pow,d=NULL,
+                     alpha,sigma_bio_q,sigma_tech_q, type="delta")
+power.hierarch.ttest(N=n,Emax=E,p=pow,d=delta,alpha=NULL,
+                     sigma_bio_q,sigma_tech_q, type="alpha")
+power.hierarch.ttest(N=NULL,Emax=E,p=pow,d=delta,alpha,
+                     sigma_bio_q,sigma_tech_q, type="n")
+
+@
+
+
+Another way to perform the quality of a test is to consider with the confidence interval of mean difference. The standard error of mean differnce, and so the variance and the number of observations, determine the size of the $95\%$ confidence interval within the true value of difference in means is. The function calcConfInter() claculates the upper limit of the L_u = $1-\alpha$ confidence interval for given variances and replicate numbers of a hierachical experiment design. So the confidence interval size  derives from $2*|L_u|$, and the confidence interval of a given mean difference $\delta$, is $CI=[\delta+L_u,\delta+L_u]$
+
+\begin{description}
+   \item[\bf{Input:}] $\alpha$, $\sigma_{bio}^2$,$\sigma_{tech}^2$, \# biological and technical replicates
+    \item[\bf{Output:}] upper limit of the $1-\alpha$ confidence interval
+   \end{description}
+
+
+
+
+The function \Rfunction{supportMat()} provides all possible experiment designs with the option of two-level hierarchical experiment using an hierarchical t-test. Given $\alpha$, power $1-\beta$, $\delta$, biological and technical variance $\sigma_{bio}^2$,$\sigma_{tech}^2$ and the highest possible number of biological and technical replicates, the function calculates the possible combinations of biological and technical replicates which are sufficient for the test with given parameters.  The output lists a matrix with all possible combinations of the number of biological and technical replicates $(N,E)$, the power $1-\beta$, the true difference in mean $\delta$ and $alpha$.
+
+ \begin{description}
+   \item[\bf{Input:}] $\alpha$, power, effect, $\sigma_{bio}^2$,$\sigma_{tech}^2$, maximum \# biological and technical replicates
+    \item[\bf{Output:}] list of matrix of possible combinations of (\# technical replicates, \# biological replicates),effect, alpha and power
+   \end{description}
+   
+
+<<>>==
+Nmax<-50
+Emax<-50
+power<-0.8
+d<-0.5
+   
+supportMat(alpha, power, sigma_tech_q, sigma_bio_q, d, Emax, Nmax )
+
+@
+
+Finally, the experiment with minimal cost can be calculated with \Rfunction{minCostPoss()}. 
+The cost relation between biological and technical replicates has to be quantified and the function returns the number of biological and technical replicates for the experiment design 
+with given parameters, which produce the minimal costs.
+
+<<>>==
+cost<-c(0.9,0.1)
+
+minCostPoss(alpha, power, sigma_tech_q, 
+            sigma_bio_q, d, Emax, Nmax, cost )
+@
+
+It is possible to compare different scenarios of cost relations. 
+In this special example, three possible cost relations are compared 
+and the result of this is the matrix of all possible combinations of biological 
+and technical replicates with minimal costs for each cost relation. 
+
+<<>>==
+cost4<-c(7,3)
+cost5<-c(8,2)
+cost6<-c(9,1)
+costmat<-rbind(cost4,cost5,cost6)
+colnames(costmat)<-c("Cost biol.","Cost techn.")
+
+Nmax<-100
+Emax<-100
+power<-0.8
+d<-1
+
+
+res<-apply(costmat,1,function(x){ 
+  minCostPoss(alpha,power,sigma_tech_q,sigma_bio_q,d,Emax,Nmax,x)[[1]]  
+  })
+
+# it is possible that one cost relationship has more than one 
+# replicate-combination if their power is the same,
+# so the several possibilities have to be combined
+if(is.list(res)){
+  restemp<-c();
+  for(i in (1:nrow(costmat))){
+    if(is.matrix(res[[i]])){
+      restemp<-rbind(restemp,
+                     cbind( matrix(
+                            rep(costmat[i,],times=ncol(res[[i]])),
+                            nrow=nrow(res[[i]]),byrow=TRUE), res[[i]]  
+                            ))
+    }else {
+      restemp<-rbind(restemp,c(costmat[i,],res[[i]]))}
+  }
+  res<-restemp;
+}else{ 
+  res<-cbind(costmat,t(res));
+}
+
+@
+
+For some cost relations it is possible that more than one combination results 
+in minimal costs, shown in Table 1.
+
+<<echo=FALSE>>==
+library(Hmisc)
+
+## Create a latex table from table of costs matrix
+
+dummy <- latex(res, file="costs.tex", ctable=TRUE, 
+            caption="Optimal Experiment design with several relations of costs")
+@
+
+
+% Now include the table written to file "costs.tex" above
+\input{costs}
+
+Furthermore, six possible effects for one specified cost relation are compared. 
+The result of this is a matrix of all possible combinations of biological 
+and technical replicates with minimal costs for each effect, shown in Table 2.
+
+
+<<>>==
+deltapos<-rev(c(0.25,0.5,0.75,1,1.5,2))
+Nmax<-100
+Emax<-100
+power<-0.8
+cost<-c(9,1)
+
+res<-sapply(deltapos,function(d){ 
+  minCostPoss(alpha, power, sigma_tech_q, 
+              sigma_bio_q, d, Emax, Nmax, cost )[[1]] })
+# it is possible, that one cost relation has more than one 
+# replicate-combination if their power is the same,
+# so the several possibilities have to be combined
+if(is.list(res)){
+  restemp<-c();
+  for(i in (1:length(deltapos))){
+    if(is.matrix(res[[i]])){
+      restemp<-rbind(restemp,cbind( 
+        matrix(rep(deltapos[i],times=ncol(res[[i]])),
+               nrow=nrow(res[[i]]),byrow=TRUE), res[[i]]))
+    }else {
+      restemp<-rbind(restemp,c(deltapos[i],res[[i]]))}
+  }
+  res<-restemp;
+}else{ 
+  res<-cbind(deltapos,t(res));
+}
+
+colnames(res)[1]<-"effect"
+
+@
+
+
+<<echo=FALSE>>==
+library(Hmisc)
+
+## Create a latex table from table of costs matrix
+
+dummy <- latex(res, file="delta.tex", ctable=TRUE, caption="Optimal Experiment design with several effects")
+@
+
+% Now include the table written to file "costs.tex" above
+\input{delta}
+
+\newpage
+
+\section{All functions in genericFunc.R}
+
+included several R functions, listed here:
+
+\begin{enumerate}
+ \item \Rfunction{estVarLevData()}
+  \begin{description}
+   \item[\bf{Input:}] \#levels, \#replicates of each level, filename of dataset, which is performed by a hierarchical experiment design, filename of description matrix
+    \item[\bf{Output:}] matrix of variances of each level, additionally the total variance for each feature of the dataset
+   \end{description}
+  \item \Rfunction{diffAnovData()}
+  \begin{description}
+   \item[\bf{Input:}] \#levels, \#replicates of each level, filename of data, where the first level of hierarchical model should be the different genotypes, filename of description matrix
+    \item[\bf{Output:}] p-value of significance for each feature of the dataset
+   \end{description}
+  \item \Rfunction{PlotStripForVarLev()}
+  \begin{description}
+   \item[\bf{Input:}] \# features, \#levels, levelnames, matrix of variances as it is get out of 1., filename for saving the plot
+    \item[\bf{Output:}] pdf of the stripchart plot for given variances
+   \end{description}
+  \item \Rfunction{power.hierarch.ttest()}
+  \begin{description}
+   \item[\bf{Input:}] $\alpha$,\# biological replicates, $\sigma_{bio}^2$,$\sigma_{tech}^2$ and 2 of 3 parameters from \# technical replicates, effect and power
+    \item[\bf{Output:}] list of (\# technical replicates, \# biological replicates),effect, power, alpha
+   \end{description}
+   \item \Rfunction{calcConfInter()}
+   \begin{description}
+   \item[\bf{Input:}] $\alpha$, $\sigma_{bio}^2$,$\sigma_{tech}^2$, \# biological and technical replicates
+    \item[\bf{Output:}] upper limit of the $1-\alpha$ confidence interval
+   \end{description}
+   \item \Rfunction{supportMat()}
+  \begin{description}
+   \item[\bf{Input:}] $\alpha$, power, effect, $\sigma_{bio}^2$,$\sigma_{tech}^2$, maximum \# biological and technical replicates
+    \item[\bf{Output:}] list of matrix of possible combinations of (\# technical replicates, \# biological replicates),effect and power, alpha
+   \end{description}
+    \item \Rfunction{minCostPoss()}
+   \begin{description}
+   \item[\bf{Input:}] $\alpha$, power, effect, $\sigma_{bio}^2$,$\sigma_{tech}^2$, maximum \# biological and technical replicates, vector of cost relation of biological and technical replicates
+    \item[\bf{Output:}] list of (minimum  \# technical replicates, minimum \# biological replicates),cost relations, effect and power, alpha
+   \end{description}
+\end{enumerate}
+
+
+\end{document}
